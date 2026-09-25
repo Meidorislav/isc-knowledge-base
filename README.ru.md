@@ -21,12 +21,23 @@
 |---|---|
 | Backend | Python / FastAPI (один процесс: поиск, RAG, онбординг, аналитика) |
 | Хранилище | PostgreSQL + pgvector |
-| Полнотекстовый поиск | Postgres FTS |
+| Полнотекстовый поиск | BM25 через ParadeDB `pg_search` |
 | LLM | Ollama (Qwen2.5 / Llama 3.1, квантованные) |
-| Эмбеддинги | bge-m3 / nomic-embed-text (через Ollama) |
+| Эмбеддинги | bge-m3 (через Ollama) |
 | Реранкер | bge-reranker (cross-encoder) |
 | Frontend | TypeScript + React |
 | CI/CD | GitHub Actions |
+
+## Разработка
+
+```bash
+docker compose up -d db          # Postgres + pgvector + pg_search
+cd backend && cp .env.example .env && uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+```
+
+Проектные документы: [ingestion pipeline](docs/ingestion.md).
 
 ## Лицензия
 
