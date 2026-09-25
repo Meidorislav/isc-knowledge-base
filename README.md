@@ -21,12 +21,23 @@ Everything runs **locally**, within the company's infrastructure — employee qu
 |---|---|
 | Backend | Python / FastAPI (single process: search, RAG, onboarding, analytics) |
 | Storage | PostgreSQL + pgvector |
-| Full-text search | Postgres FTS |
+| Full-text search | BM25 via ParadeDB `pg_search` |
 | LLM | Ollama (Qwen2.5 / Llama 3.1, quantized) |
-| Embeddings | bge-m3 / nomic-embed-text (via Ollama) |
+| Embeddings | bge-m3 (via Ollama) |
 | Reranker | bge-reranker (cross-encoder) |
 | Frontend | TypeScript + React |
 | CI/CD | GitHub Actions |
+
+## Development
+
+```bash
+docker compose up -d db          # Postgres + pgvector + pg_search
+cd backend && cp .env.example .env && uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+```
+
+Design docs: [ingestion pipeline](docs/ingestion.md) (RU).
 
 ## License
 
