@@ -66,10 +66,11 @@ def _parse_docx(raw: bytes) -> str:
             text = item.text.strip()
             if not text:
                 continue
-            style = item.style.name if item.style is not None else ""
-            if style == "Title":
+            paragraph_style = item.style
+            style_name = paragraph_style.name if paragraph_style is not None else None
+            if style_name == "Title":
                 blocks.append(f"# {text}")
-            elif m := _HEADING_STYLE.match(style):
+            elif m := _HEADING_STYLE.match(style_name or ""):
                 blocks.append(f"{'#' * int(m.group(1))} {text}")
             else:
                 blocks.append(text)

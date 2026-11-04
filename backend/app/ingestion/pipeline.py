@@ -20,6 +20,8 @@ def process_version(session: Session, version_id: uuid.UUID) -> None:
     if version is None:
         raise LookupError(f"version {version_id} not found")
     document = session.get(Document, version.document_id)
+    if document is None:
+        raise LookupError(f"document {version.document_id} not found")
 
     if _is_stale(session, document, version):
         log.info("skip stale version %s of document %s", version.version, document.id)
@@ -28,8 +30,9 @@ def process_version(session: Session, version_id: uuid.UUID) -> None:
     document.status = DocumentStatus.PROCESSING
     session.commit()
 
-    version.text = parse(version.raw, version.file_format)
-    drafts = chunk_document(version.text, document.title)
+    text = parse(version.raw, version.file_format)
+    version.text = text
+    drafts = chunk_document(text, document.title)
     if not drafts:
         raise ValueError("В документе не найдено текста")
 
