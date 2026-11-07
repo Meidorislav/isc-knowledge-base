@@ -11,6 +11,9 @@ Algorithm (to be implemented):
 """
 
 from dataclasses import dataclass
+from functools import cache
+
+from tokenizers import Tokenizer
 
 CHUNKER_VERSION = "0.1"
 
@@ -29,8 +32,35 @@ class ChunkDraft:
 
     @property
     def search_text(self) -> str:
-        return " > ".join(self.heading_path) + "\n\n" + self.text
+        return _format_search_text(self.heading_path, self.text)
+
+
+def _format_search_text(heading_path: list[str], text: str) -> str:
+    return " > ".join(heading_path) + "\n\n" + text
+
+
+@cache
+def _get_tokenizer() -> Tokenizer:
+    return Tokenizer.from_pretrained(
+        "BAAI/bge-m3",
+        revision="5617a9f61b028005a4858fdac845db406aefb181",
+    )
 
 
 def chunk_document(text: str, title: str) -> list[ChunkDraft]:
-    raise NotImplementedError("chunker is the next step, see module docstring")
+    if not text:
+        return []
+
+    heading_path = [title]
+    search_text = _format_search_text(heading_path, text)
+    token_count = len(_get_tokenizer().encode(search_text).ids)
+    if token_count > MAX_TOKENS:
+        raise NotImplementedError("Разбиение длинного текста пока не реализовано")
+
+    draft = ChunkDraft(
+        text=text,
+        heading_path=heading_path,
+        token_count=token_count,
+        structure="flat",
+    )
+    return [draft]
