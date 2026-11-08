@@ -1,5 +1,6 @@
 import json
 from types import SimpleNamespace
+from unittest.mock import Mock
 from uuid import UUID
 
 import httpx
@@ -7,12 +8,13 @@ import pytest
 from pydantic import ValidationError
 
 from app import rag
-from app.rag import ModelAnswer, build_messages, format_context
+from app.rag import InvalidModelAnswer, ModelAnswer, build_messages, format_context, resolve_answer
 from app.search import RrfHit
 
 
-def test_format_context_numbers_sources_in_search_order():
-    hits = [
+@pytest.fixture
+def hits():
+    return [
         RrfHit(
             chunk_id=42,
             document_id=UUID("197a31c6-2fe8-45bf-a3f8-0fe074c43276"),
@@ -29,6 +31,8 @@ def test_format_context_numbers_sources_in_search_order():
         ),
     ]
 
+
+def test_format_context_numbers_sources_in_search_order(hits):
     assert format_context(hits) == (
         "[1] Подача заявки > Сроки рассмотрения\n"
         "Ответ приходит за три дня.\n\n"
@@ -41,16 +45,8 @@ def test_format_context_returns_empty_string_without_sources():
     assert format_context([]) == ""
 
 
-def test_build_messages_separates_rules_from_question_and_context():
-    hit = RrfHit(
-        chunk_id=42,
-        document_id=UUID("197a31c6-2fe8-45bf-a3f8-0fe074c43276"),
-        heading_path=["Подача заявки", "Сроки рассмотрения"],
-        text="Ответ приходит за три дня.",
-        rrf_score=0.0328,
-    )
-
-    system, user = build_messages("Когда ответят на заявку?", [hit])
+def test_build_messages_separates_rules_from_question_and_context(hits):
+    system, user = build_messages("Когда ответят на заявку?", hits[:1])
 
     assert system["role"] == "system"
     assert "только по переданным источникам" in system["content"]
@@ -92,3 +88,39 @@ def test_generate_answer_requests_structured_chat(monkeypatch, answer, citations
 def test_model_answer_rejects_string_citation_numbers():
     with pytest.raises(ValidationError):
         ModelAnswer.model_validate_json('{"answer": "Три дня.", "citations": ["1"]}')
+
+
+def test_resolve_answer_looks_up_sources_by_number_and_keeps_citation_order(hits):
+    result = resolve_answer(ModelAnswer(answer="Три дня.", citations=[2, 1, 2]), hits)
+
+    assert result.answer == "Три дня."
+    assert [source.number for source in result.sources] == [2, 1]
+    assert [source.chunk_id for source in result.sources] == [7, 42]
+    assert result.sources[0].document_id == hits[1].document_id
+    assert result.sources[0].text == hits[1].text
+
+
+@pytest.mark.parametrize(
+    ("answer", "citations"),
+    [("Три дня.", [0]), ("Три дня.", [-1]), ("Три дня.", [1, 3]), ("Три дня.", []), (" ", [1]), (None, [1])],
+)
+def test_resolve_answer_rejects_invalid_references_or_answer(hits, answer, citations):
+    with pytest.raises(InvalidModelAnswer):
+        resolve_answer(ModelAnswer(answer=answer, citations=citations), hits)
+
+
+def test_resolve_answer_accepts_refusal(hits):
+    result = resolve_answer(ModelAnswer(answer=None, citations=[]), hits)
+
+    assert result.model_dump() == {"answer": None, "sources": []}
+
+
+def test_answer_question_skips_generation_without_hits(monkeypatch):
+    monkeypatch.setattr(rag, "search_hybrid", Mock(return_value=[]))
+    generate = Mock()
+    monkeypatch.setattr(rag, "generate_answer", generate)
+
+    result = rag.answer_question(Mock(), "Как приготовить борщ?")
+
+    assert result.model_dump() == {"answer": None, "sources": []}
+    generate.assert_not_called()

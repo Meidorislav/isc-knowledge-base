@@ -1,8 +1,13 @@
+from uuid import UUID
+
 import httpx
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.search import RrfHit
+from app.search import RrfHit, search_hybrid
+
+RAG_SOURCE_LIMIT = 3
 
 SYSTEM_PROMPT = (
     "Отвечай на вопрос только по переданным источникам. "
@@ -19,6 +24,23 @@ class ModelAnswer(BaseModel):
 
     answer: str | None
     citations: list[int]
+
+
+class AnswerSource(BaseModel):
+    number: int
+    document_id: UUID
+    chunk_id: int
+    heading_path: list[str]
+    text: str
+
+
+class RagAnswer(BaseModel):
+    answer: str | None
+    sources: list[AnswerSource]
+
+
+class InvalidModelAnswer(ValueError):
+    pass
 
 
 def format_context(hits: list[RrfHit]) -> str:
@@ -53,4 +75,42 @@ def generate_answer(messages: list[dict[str, str]]) -> ModelAnswer:
         )
         response.raise_for_status()
 
-    return ModelAnswer.model_validate_json(response.json()["message"]["content"])
+    try:
+        return ModelAnswer.model_validate_json(response.json()["message"]["content"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise InvalidModelAnswer("Модель вернула ответ в неверном формате") from exc
+
+
+def resolve_answer(model_answer: ModelAnswer, hits: list[RrfHit]) -> RagAnswer:
+    if model_answer.answer is None:
+        if model_answer.citations:
+            raise InvalidModelAnswer("Отказ модели содержит ссылки")
+        return RagAnswer(answer=None, sources=[])
+
+    answer = model_answer.answer.strip()
+    if not answer or not model_answer.citations:
+        raise InvalidModelAnswer("Ответ модели пустой или не содержит ссылок")
+
+    sources: list[AnswerSource] = []
+    for number in dict.fromkeys(model_answer.citations):
+        if not 1 <= number <= len(hits):
+            raise InvalidModelAnswer("Модель сослалась на источник вне контекста")
+        hit = hits[number - 1]
+        sources.append(
+            AnswerSource(
+                number=number,
+                document_id=hit.document_id,
+                chunk_id=hit.chunk_id,
+                heading_path=hit.heading_path,
+                text=hit.text,
+            )
+        )
+    return RagAnswer(answer=answer, sources=sources)
+
+
+def answer_question(session: Session, question: str) -> RagAnswer:
+    hits = search_hybrid(session, question, limit=RAG_SOURCE_LIMIT)
+    if not hits:
+        return RagAnswer(answer=None, sources=[])
+    model_answer = generate_answer(build_messages(question, hits))
+    return resolve_answer(model_answer, hits)
