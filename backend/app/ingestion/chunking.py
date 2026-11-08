@@ -51,27 +51,45 @@ def chunk_document(text: str, title: str) -> list[ChunkDraft]:
     if not text:
         return []
 
-    heading_path = [title]
-    structure = "flat"
-    first_line, _, body = text.partition("\n")
-    marker, _, heading = first_line.partition(" ")
-    heading = heading.strip()
-    if marker == "#" and heading:
-        text = body.strip()
-        if not text:
-            return []
-        heading_path.append(heading)
-        structure = "markdown"
+    headings: list[tuple[int, str]] = []
+    body_lines: list[str] = []
+    sections: list[tuple[list[str], list[str]]] = [([title], body_lines)]
 
-    search_text = _format_search_text(heading_path, text)
-    token_count = len(_get_tokenizer().encode(search_text).ids)
-    if token_count > MAX_TOKENS:
-        raise NotImplementedError("Разбиение длинного текста пока не реализовано")
+    for line in text.split("\n"):
+        marker, _, heading = line.partition(" ")
+        heading = heading.strip()
+        if marker not in ("#", "##", "###", "####", "#####", "######") or not heading:
+            body_lines.append(line)
+            continue
 
-    draft = ChunkDraft(
-        text=text,
-        heading_path=heading_path,
-        token_count=token_count,
-        structure=structure,
-    )
-    return [draft]
+        level = len(marker)
+        while headings and headings[-1][0] >= level:
+            headings.pop()
+        headings.append((level, heading))
+
+        heading_path = [title] + [name for _, name in headings]
+        body_lines = []
+        sections.append((heading_path, body_lines))
+
+    structure = "markdown" if headings else "flat"
+    drafts: list[ChunkDraft] = []
+    for heading_path, lines in sections:
+        body = "\n".join(lines).strip()
+        if not body:
+            continue
+
+        search_text = _format_search_text(heading_path, body)
+        token_count = len(_get_tokenizer().encode(search_text).ids)
+        if token_count > MAX_TOKENS:
+            raise NotImplementedError("Разбиение длинного текста пока не реализовано")
+
+        drafts.append(
+            ChunkDraft(
+                text=body,
+                heading_path=heading_path,
+                token_count=token_count,
+                structure=structure,
+            )
+        )
+
+    return drafts
