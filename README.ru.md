@@ -29,9 +29,12 @@
 
 ## Разработка
 
+Выполните команды из корня репозитория.
+
 ```bash
 docker compose up -d db          # Postgres + pgvector + pg_search
-cd backend && cp .env.example .env && uv sync
+cp .env.example .env
+uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```

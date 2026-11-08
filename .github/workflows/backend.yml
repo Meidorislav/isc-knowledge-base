@@ -5,15 +5,18 @@ on:
     branches: [main]
   pull_request:
     paths:
-      - "backend/**"
+      - "app/**"
+      - "migrations/**"
+      - "tests/**"
+      - ".env.example"
+      - "alembic.ini"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/backend.yml"
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

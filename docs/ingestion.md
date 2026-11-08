@@ -36,7 +36,7 @@
                      chunks: HNSW (pgvector) + BM25 (pg_search)
 ```
 
-Код: `backend/app/ingestion/`.
+Код: `app/ingestion/`.
 
 | Модуль | Роль |
 |---|---|
@@ -106,7 +106,7 @@ uploaded ──► processing ──► indexed
 
 ## Схема БД
 
-Миграция: `backend/migrations/versions/0001_initial.py`.
+Миграция: `migrations/versions/0001_initial.py`.
 
 ```
 documents          id, title, category, owner, visibility, status, current_version_id, created_at, updated_at
@@ -122,7 +122,7 @@ ingestion_jobs     id, version_id, status, attempts, last_error, created_at, sta
 
 ## Как это используется в поиске
 
-В `backend/app/search.py` PostgreSQL выполняет две отдельные выборки. BM25 ищет по `search_text` и сортирует по `pdb.score(id)`. Для векторного поиска Ollama строит эмбеддинг вопроса, а pgvector сортирует чанки той же модели по косинусному расстоянию (`embedding <=> :qvec`).
+В `app/search.py` PostgreSQL выполняет две отдельные выборки. BM25 ищет по `search_text` и сортирует по `pdb.score(id)`. Для векторного поиска Ollama строит эмбеддинг вопроса, а pgvector сортирует чанки той же модели по косинусному расстоянию (`embedding <=> :qvec`).
 
 `GET /search` запрашивает до `max(30, limit)` кандидатов из каждой выборки. Python объединяет списки по `chunk_id` через **RRF** (Reciprocal Rank Fusion). За каждое место чанк получает `1 / (60 + rank)`, где `rank` начинается с единицы. После сортировки по сумме вкладов API возвращает до `limit` чанков.
 
@@ -157,10 +157,11 @@ API возвращает `answer` и `sources`. Номера ссылок про
 
 ## Запуск локально
 
+Выполните команды из корня репозитория.
+
 ```bash
 docker compose up -d db
 ollama pull bge-m3                  # Ollama на macOS ставится нативно, не в Docker
-cd backend
 cp .env.example .env
 uv sync
 uv run alembic upgrade head
