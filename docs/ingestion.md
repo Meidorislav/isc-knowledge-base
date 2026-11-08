@@ -122,7 +122,11 @@ ingestion_jobs     id, version_id, status, attempts, last_error, created_at, sta
 
 ## Как это используется в поиске
 
-Для контекста, реализация будет в модуле поиска. Гибрид собирается прямо в SQL: топ-N из BM25 (`search_text ||| :query`, скор `pdb.score(id)`) и топ-N из pgvector (`embedding <=> :qvec`) сливаются через **RRF** (Reciprocal Rank Fusion), затем результат отдаётся в bge-reranker.
+В `backend/app/search.py` PostgreSQL выполняет две отдельные выборки. BM25 ищет по `search_text` и сортирует по `pdb.score(id)`. Для векторного поиска Ollama строит эмбеддинг вопроса, а pgvector сортирует чанки той же модели по косинусному расстоянию (`embedding <=> :qvec`).
+
+`GET /search` запрашивает до `max(30, limit)` кандидатов из каждой выборки. Python объединяет списки по `chunk_id` через **RRF** (Reciprocal Rank Fusion). За каждое место чанк получает `1 / (60 + rank)`, где `rank` начинается с единицы. После сортировки по сумме вкладов API возвращает до `limit` чанков.
+
+Отдельные маршруты `GET /search/bm25` и `GET /search/vector` позволяют сравнивать выдачи. Все три принимают обязательный `q` и `limit` от 1 до 100, по умолчанию 10. Реранкер отложен до оценки качества на реальных вопросах.
 
 ## Очередь и воркер
 
