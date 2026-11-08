@@ -118,8 +118,33 @@ def test_chunk_document_splits_oversized_paragraph_by_lines(word_count_tokenizer
 
 
 @pytest.mark.parametrize("prefix", ["", "Первая строка.\n"])
-def test_chunk_document_reports_line_over_max_tokens(word_count_tokenizer, prefix):
+def test_chunk_document_splits_oversized_line_by_sentences(word_count_tokenizer, prefix):
+    sentences = [" ".join(["день"] * count).capitalize() + "." for count in (240, 230, 350)]
+    first_body = "  ".join(sentences[:2])
+    text = prefix + first_body + " " + sentences[2]
+
+    drafts = chunking.chunk_document(text, "Инструкция")
+
+    expected = [prefix.rstrip()] if prefix else []
+    assert [draft.text for draft in drafts] == expected + [first_body, sentences[2]]
+    assert [draft.token_count for draft in drafts[-2:]] == [471, 351]
+
+
+def test_chunk_document_keeps_abbreviation_inside_sentence(word_count_tokenizer):
+    first_sentence = " ".join(["день"] * 480).capitalize() + "."
+    second_sentence = "Справки и т. д. приложите к заявке " + " ".join(["заранее"] * 40) + "."
+    third_sentence = " ".join(["ответ"] * 310).capitalize() + "."
+    text = " ".join([first_sentence, second_sentence, third_sentence])
+
+    first, second = chunking.chunk_document(text, "Инструкция")
+
+    assert first.text == first_sentence
+    assert second.text == f"{second_sentence} {third_sentence}"
+
+
+@pytest.mark.parametrize("prefix", ["", "Первая строка.\n"])
+def test_chunk_document_reports_sentence_over_max_tokens(word_count_tokenizer, prefix):
     text = prefix + " ".join(["ответ"] * 800)
 
-    with pytest.raises(NotImplementedError, match="длинной строки"):
+    with pytest.raises(NotImplementedError, match="длинного предложения"):
         chunking.chunk_document(text, "Инструкция")

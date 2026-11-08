@@ -13,6 +13,7 @@ Algorithm (to be implemented):
 from dataclasses import dataclass
 from functools import cache
 
+from razdel import sentenize
 from tokenizers import Tokenizer
 
 CHUNKER_VERSION = "0.1"
@@ -52,25 +53,44 @@ def _count_tokens(heading_path: list[str], text: str) -> int:
     return len(_get_tokenizer().encode(search_text).ids)
 
 
-def _split_by_separator(text: str, heading_path: list[str], separator: str) -> list[tuple[str, int]]:
+def _sentence_fragments(text: str) -> list[str]:
+    fragments: list[str] = []
+    start = 0
+    for sentence in sentenize(text):
+        # Start at the previous sentence's end to keep the original spacing.
+        fragments.append(text[start : sentence.stop])
+        start = sentence.stop
+    return fragments
+
+
+def _split_oversized_text(text: str, heading_path: list[str], separator: str | None) -> list[tuple[str, int]]:
+    if separator is None:
+        fragments = _sentence_fragments(text)
+        joiner = ""
+    else:
+        fragments = text.split(separator)
+        joiner = separator
+
     parts: list[tuple[str, int]] = []
     current = ""
     current_count = 0
 
-    for fragment in text.split(separator):
-        candidate = current + separator + fragment if current else fragment
+    for fragment in fragments:
+        standalone = fragment.lstrip() if separator is None else fragment
+        candidate = current + joiner + fragment if current else standalone
         candidate_count = _count_tokens(heading_path, candidate)
 
         if current and candidate_count > TARGET_TOKENS:
             parts.append((current, current_count))
-            candidate = fragment
+            candidate = standalone
             candidate_count = _count_tokens(heading_path, candidate)
 
         if candidate_count > MAX_TOKENS:
-            if separator == "\n" or "\n" not in candidate:
-                raise NotImplementedError("Разбиение длинной строки пока не реализовано")
+            if separator is None:
+                raise NotImplementedError("Разбиение длинного предложения пока не реализовано")
 
-            parts.extend(_split_by_separator(candidate, heading_path, "\n"))
+            next_separator = "\n" if separator == "\n\n" and "\n" in candidate else None
+            parts.extend(_split_oversized_text(candidate, heading_path, next_separator))
             current = ""
             current_count = 0
             continue
@@ -116,7 +136,7 @@ def chunk_document(text: str, title: str) -> list[ChunkDraft]:
 
         token_count = _count_tokens(heading_path, body)
         if token_count > MAX_TOKENS:
-            parts = _split_by_separator(body, heading_path, "\n\n")
+            parts = _split_oversized_text(body, heading_path, "\n\n")
         else:
             parts = [(body, token_count)]
 
