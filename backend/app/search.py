@@ -9,6 +9,8 @@ from app.config import get_settings
 from app.ingestion.embedding import embed
 from app.models import EMBED_DIM
 
+RRF_K = 60
+
 
 @dataclass(frozen=True)
 class Bm25Hit:
@@ -26,6 +28,15 @@ class VectorHit:
     heading_path: list[str]
     text: str
     distance: float
+
+
+@dataclass(frozen=True)
+class RrfHit:
+    chunk_id: int
+    document_id: UUID
+    heading_path: list[str]
+    text: str
+    rrf_score: float
 
 
 def search_bm25(session: Session, query: str, limit: int) -> list[Bm25Hit]:
@@ -61,3 +72,31 @@ def search_vector(session: Session, query: str, limit: int) -> list[VectorHit]:
     params = {"query_vector": query_vector, "model": get_settings().embed_model, "limit": limit}
     rows = session.execute(statement, params).mappings()
     return [VectorHit(**row) for row in rows]
+
+
+def fuse_rrf(bm25_hits: list[Bm25Hit], vector_hits: list[VectorHit], limit: int) -> list[RrfHit]:
+    if limit <= 0:
+        return []
+
+    hits_by_id: dict[int, Bm25Hit | VectorHit] = {}
+    scores: dict[int, float] = {}
+    for ranking in (bm25_hits, vector_hits):
+        for rank, hit in enumerate(ranking, start=1):
+            chunk_id = hit.chunk_id
+            hits_by_id.setdefault(chunk_id, hit)
+            scores[chunk_id] = scores.get(chunk_id, 0.0) + 1 / (RRF_K + rank)
+
+    ranked_ids = sorted(scores, key=lambda chunk_id: (-scores[chunk_id], chunk_id))
+    results: list[RrfHit] = []
+    for chunk_id in ranked_ids[:limit]:
+        hit = hits_by_id[chunk_id]
+        results.append(
+            RrfHit(
+                chunk_id=chunk_id,
+                document_id=hit.document_id,
+                heading_path=hit.heading_path,
+                text=hit.text,
+                rrf_score=scores[chunk_id],
+            )
+        )
+    return results
