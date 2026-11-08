@@ -47,6 +47,36 @@ def _get_tokenizer() -> Tokenizer:
     )
 
 
+def _count_tokens(heading_path: list[str], text: str) -> int:
+    search_text = _format_search_text(heading_path, text)
+    return len(_get_tokenizer().encode(search_text).ids)
+
+
+def _split_paragraphs(text: str, heading_path: list[str]) -> list[tuple[str, int]]:
+    parts: list[tuple[str, int]] = []
+    current = ""
+    current_count = 0
+
+    for paragraph in text.split("\n\n"):
+        candidate = current + "\n\n" + paragraph if current else paragraph
+        candidate_count = _count_tokens(heading_path, candidate)
+
+        if current and candidate_count > TARGET_TOKENS:
+            parts.append((current, current_count))
+            candidate = paragraph
+            candidate_count = _count_tokens(heading_path, candidate)
+
+        if candidate_count > MAX_TOKENS:
+            raise NotImplementedError("Разбиение длинного абзаца пока не реализовано")
+
+        current = candidate
+        current_count = candidate_count
+
+    if current:
+        parts.append((current, current_count))
+    return parts
+
+
 def chunk_document(text: str, title: str) -> list[ChunkDraft]:
     if not text:
         return []
@@ -78,18 +108,20 @@ def chunk_document(text: str, title: str) -> list[ChunkDraft]:
         if not body:
             continue
 
-        search_text = _format_search_text(heading_path, body)
-        token_count = len(_get_tokenizer().encode(search_text).ids)
+        token_count = _count_tokens(heading_path, body)
         if token_count > MAX_TOKENS:
-            raise NotImplementedError("Разбиение длинного текста пока не реализовано")
+            parts = _split_paragraphs(body, heading_path)
+        else:
+            parts = [(body, token_count)]
 
-        drafts.append(
-            ChunkDraft(
-                text=body,
-                heading_path=heading_path,
-                token_count=token_count,
-                structure=structure,
+        for part, part_count in parts:
+            drafts.append(
+                ChunkDraft(
+                    text=part,
+                    heading_path=heading_path.copy(),
+                    token_count=part_count,
+                    structure=structure,
+                )
             )
-        )
 
     return drafts

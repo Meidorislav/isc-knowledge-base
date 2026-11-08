@@ -74,3 +74,41 @@ def test_chunk_document_preserves_intro_and_starts_new_branch(monkeypatch):
     assert intro.text == "Перед подачей проверьте данные."
     assert deadline.heading_path == ["Подача заявки", "Рассмотрение", "Сроки"]
     assert archive.heading_path == ["Подача заявки", "Архив"]
+
+
+@pytest.fixture
+def word_count_tokenizer(monkeypatch):
+    tokenizer = Mock()
+    tokenizer.encode.side_effect = lambda text: Mock(ids=text.split())
+    monkeypatch.setattr(chunking, "_get_tokenizer", lambda: tokenizer)
+
+
+def test_chunk_document_splits_long_section_by_paragraphs(word_count_tokenizer):
+    paragraphs = [
+        " ".join([word] * count)
+        for word, count in [("форма", 240), ("заявка", 239), ("ответ", 310), ("архив", 175)]
+    ]
+
+    first, second = chunking.chunk_document("\n\n".join(paragraphs), "Инструкция")
+
+    assert first.text == "\n\n".join(paragraphs[:2])
+    assert second.text == "\n\n".join(paragraphs[2:])
+    assert first.heading_path == second.heading_path == ["Инструкция"]
+    assert first.token_count == 480
+    assert second.token_count == 486
+
+
+def test_chunk_document_keeps_paragraph_at_max_tokens(word_count_tokenizer):
+    text = " ".join(["ответ"] * 799) + "\n\nПримечание."
+
+    first, second = chunking.chunk_document(text, "Инструкция")
+
+    assert first.token_count == 800
+    assert second.text == "Примечание."
+
+
+def test_chunk_document_reports_paragraph_over_max_tokens(word_count_tokenizer):
+    text = " ".join(["ответ"] * 800)
+
+    with pytest.raises(NotImplementedError, match="длинного абзаца"):
+        chunking.chunk_document(text, "Инструкция")
