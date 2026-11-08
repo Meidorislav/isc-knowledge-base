@@ -143,8 +143,34 @@ def test_chunk_document_keeps_abbreviation_inside_sentence(word_count_tokenizer)
 
 
 @pytest.mark.parametrize("prefix", ["", "Первая строка.\n"])
-def test_chunk_document_reports_sentence_over_max_tokens(word_count_tokenizer, prefix):
-    text = prefix + " ".join(["ответ"] * 800)
+def test_chunk_document_splits_oversized_sentence_at_word_boundaries(word_count_tokenizer, prefix):
+    first_body = "День  " + " ".join(["день"] * 498)
+    second_body = " ".join(["день"] * 400) + "."
+    drafts = chunking.chunk_document(prefix + first_body + "\t" + second_body, "Инструкция")
 
-    with pytest.raises(NotImplementedError, match="длинного предложения"):
-        chunking.chunk_document(text, "Инструкция")
+    expected_intro = [prefix.rstrip()] if prefix else []
+    assert [draft.text for draft in drafts] == expected_intro + [first_body, second_body]
+    assert [draft.token_count for draft in drafts[-2:]] == [500, 401]
+
+
+@pytest.fixture
+def character_count_tokenizer(monkeypatch):
+    tokenizer = Mock()
+    tokenizer.encode.side_effect = lambda text: Mock(ids=range(len(text)))
+    monkeypatch.setattr(chunking, "_get_tokenizer", lambda: tokenizer)
+
+
+def test_chunk_document_splits_oversized_word_without_losing_characters(character_count_tokenizer):
+    word = "абв" * 300
+    first, second = chunking.chunk_document(word, "Тест")
+
+    assert first.text + second.text == word
+    assert first.token_count == 500
+    assert second.token_count == 412
+
+
+def test_chunk_document_reports_path_without_room_for_text(character_count_tokenizer):
+    title = "абв" * 266
+
+    with pytest.raises(ValueError, match="один символ"):
+        chunking.chunk_document("День.", title)

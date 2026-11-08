@@ -10,6 +10,7 @@ Algorithm (to be implemented):
   3. search_text = " > ".join(heading_path) + "\n\n" + text.
 """
 
+import re
 from dataclasses import dataclass
 from functools import cache
 
@@ -63,10 +64,50 @@ def _sentence_fragments(text: str) -> list[str]:
     return fragments
 
 
+def _find_word_cut(text: str, start: int, heading_path: list[str]) -> tuple[int, int]:
+    end = start + 1
+    token_count = _count_tokens(heading_path, text[start:end])
+    if token_count > MAX_TOKENS:
+        raise ValueError("Путь заголовков и один символ текста превышают лимит чанка")
+    if token_count > TARGET_TOKENS:
+        return end, token_count
+
+    # Find a nearby upper bound without repeatedly tokenizing the entire remainder.
+    while end < len(text):
+        upper = min(len(text), start + 2 * (end - start))
+        probe_count = _count_tokens(heading_path, text[start:upper])
+        if probe_count > TARGET_TOKENS:
+            break
+        end, token_count = upper, probe_count
+    else:
+        return end, token_count
+
+    while end + 1 < upper:
+        middle = (end + upper) // 2
+        probe_count = _count_tokens(heading_path, text[start:middle])
+        if probe_count <= TARGET_TOKENS:
+            end, token_count = middle, probe_count
+        else:
+            upper = middle
+    return end, token_count
+
+
+def _split_long_word(text: str, heading_path: list[str]) -> list[tuple[str, int]]:
+    parts: list[tuple[str, int]] = []
+    start = 0
+    while start < len(text):
+        end, token_count = _find_word_cut(text, start, heading_path)
+        parts.append((text[start:end], token_count))
+        start = end
+    return parts
+
+
 def _split_oversized_text(text: str, heading_path: list[str], separator: str | None) -> list[tuple[str, int]]:
+    joiner = ""
     if separator is None:
         fragments = _sentence_fragments(text)
-        joiner = ""
+    elif separator == " ":
+        fragments = re.findall(r"\s*\S+", text)
     else:
         fragments = text.split(separator)
         joiner = separator
@@ -76,7 +117,7 @@ def _split_oversized_text(text: str, heading_path: list[str], separator: str | N
     current_count = 0
 
     for fragment in fragments:
-        standalone = fragment.lstrip() if separator is None else fragment
+        standalone = fragment.lstrip() if not joiner else fragment
         candidate = current + joiner + fragment if current else standalone
         candidate_count = _count_tokens(heading_path, candidate)
 
@@ -86,11 +127,15 @@ def _split_oversized_text(text: str, heading_path: list[str], separator: str | N
             candidate_count = _count_tokens(heading_path, candidate)
 
         if candidate_count > MAX_TOKENS:
-            if separator is None:
-                raise NotImplementedError("Разбиение длинного предложения пока не реализовано")
-
-            next_separator = "\n" if separator == "\n\n" and "\n" in candidate else None
-            parts.extend(_split_oversized_text(candidate, heading_path, next_separator))
+            if separator == " ":
+                parts.extend(_split_long_word(candidate, heading_path))
+            else:
+                next_separator = None
+                if separator is None:
+                    next_separator = " "
+                elif separator == "\n\n" and "\n" in candidate:
+                    next_separator = "\n"
+                parts.extend(_split_oversized_text(candidate, heading_path, next_separator))
             current = ""
             current_count = 0
             continue
