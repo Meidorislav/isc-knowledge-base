@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     embed_model: str = "bge-m3"
     embed_dim: int = 1024
     embed_batch_size: int = 32
+    llm_model: str = "qwen3:1.7b"
 
     max_upload_mb: int = 20
     job_max_attempts: int = 3
