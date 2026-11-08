@@ -4,11 +4,20 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.search import Bm25Hit, VectorHit, search_bm25, search_vector
+from app.search import Bm25Hit, RrfHit, VectorHit, search_bm25, search_hybrid, search_vector
 
 router = APIRouter(prefix="/search", tags=["search"])
 SearchSession = Annotated[Session, Depends(get_session)]
 SearchLimit = Annotated[int, Query(ge=1, le=100)]
+
+
+@router.get("")
+def search_chunks(
+    session: SearchSession,
+    q: str,
+    limit: SearchLimit = 10,
+) -> list[RrfHit]:
+    return search_hybrid(session, q, limit)
 
 
 @router.get("/bm25")
