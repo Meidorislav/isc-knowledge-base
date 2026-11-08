@@ -107,8 +107,19 @@ def test_chunk_document_keeps_paragraph_at_max_tokens(word_count_tokenizer):
     assert second.text == "Примечание."
 
 
-def test_chunk_document_reports_paragraph_over_max_tokens(word_count_tokenizer):
-    text = " ".join(["ответ"] * 800)
+def test_chunk_document_splits_oversized_paragraph_by_lines(word_count_tokenizer):
+    lines = [" ".join([word] * count) for word, count in [("форма", 240), ("заявка", 230), ("ответ", 350)]]
+    paragraphs = ["Сначала вступление.", "\n".join(lines), "Наконец примечание."]
 
-    with pytest.raises(NotImplementedError, match="длинного абзаца"):
+    drafts = chunking.chunk_document("\n\n".join(paragraphs), "Инструкция")
+
+    assert [draft.text for draft in drafts] == [paragraphs[0], "\n".join(lines[:2]), lines[2], paragraphs[2]]
+    assert [draft.token_count for draft in drafts] == [3, 471, 351, 3]
+
+
+@pytest.mark.parametrize("prefix", ["", "Первая строка.\n"])
+def test_chunk_document_reports_line_over_max_tokens(word_count_tokenizer, prefix):
+    text = prefix + " ".join(["ответ"] * 800)
+
+    with pytest.raises(NotImplementedError, match="длинной строки"):
         chunking.chunk_document(text, "Инструкция")

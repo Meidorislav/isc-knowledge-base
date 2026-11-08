@@ -52,22 +52,28 @@ def _count_tokens(heading_path: list[str], text: str) -> int:
     return len(_get_tokenizer().encode(search_text).ids)
 
 
-def _split_paragraphs(text: str, heading_path: list[str]) -> list[tuple[str, int]]:
+def _split_by_separator(text: str, heading_path: list[str], separator: str) -> list[tuple[str, int]]:
     parts: list[tuple[str, int]] = []
     current = ""
     current_count = 0
 
-    for paragraph in text.split("\n\n"):
-        candidate = current + "\n\n" + paragraph if current else paragraph
+    for fragment in text.split(separator):
+        candidate = current + separator + fragment if current else fragment
         candidate_count = _count_tokens(heading_path, candidate)
 
         if current and candidate_count > TARGET_TOKENS:
             parts.append((current, current_count))
-            candidate = paragraph
+            candidate = fragment
             candidate_count = _count_tokens(heading_path, candidate)
 
         if candidate_count > MAX_TOKENS:
-            raise NotImplementedError("Разбиение длинного абзаца пока не реализовано")
+            if separator == "\n" or "\n" not in candidate:
+                raise NotImplementedError("Разбиение длинной строки пока не реализовано")
+
+            parts.extend(_split_by_separator(candidate, heading_path, "\n"))
+            current = ""
+            current_count = 0
+            continue
 
         current = candidate
         current_count = candidate_count
@@ -110,7 +116,7 @@ def chunk_document(text: str, title: str) -> list[ChunkDraft]:
 
         token_count = _count_tokens(heading_path, body)
         if token_count > MAX_TOKENS:
-            parts = _split_paragraphs(body, heading_path)
+            parts = _split_by_separator(body, heading_path, "\n\n")
         else:
             parts = [(body, token_count)]
 
