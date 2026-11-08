@@ -52,6 +52,17 @@ def chunk_document(text: str, title: str) -> list[ChunkDraft]:
         return []
 
     heading_path = [title]
+    structure = "flat"
+    first_line, _, body = text.partition("\n")
+    marker, _, heading = first_line.partition(" ")
+    heading = heading.strip()
+    if marker == "#" and heading:
+        text = body.strip()
+        if not text:
+            return []
+        heading_path.append(heading)
+        structure = "markdown"
+
     search_text = _format_search_text(heading_path, text)
     token_count = len(_get_tokenizer().encode(search_text).ids)
     if token_count > MAX_TOKENS:
@@ -61,6 +72,6 @@ def chunk_document(text: str, title: str) -> list[ChunkDraft]:
         text=text,
         heading_path=heading_path,
         token_count=token_count,
-        structure="flat",
+        structure=structure,
     )
     return [draft]
