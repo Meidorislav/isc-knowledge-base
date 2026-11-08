@@ -10,6 +10,7 @@ from app.ingestion.embedding import embed
 from app.models import EMBED_DIM
 
 RRF_K = 60
+RRF_CANDIDATE_LIMIT = 30
 
 
 @dataclass(frozen=True)
@@ -100,3 +101,14 @@ def fuse_rrf(bm25_hits: list[Bm25Hit], vector_hits: list[VectorHit], limit: int)
             )
         )
     return results
+
+
+def search_hybrid(session: Session, query: str, limit: int) -> list[RrfHit]:
+    query = query.strip()
+    if not query or limit <= 0:
+        return []
+
+    candidate_limit = max(RRF_CANDIDATE_LIMIT, limit)
+    bm25_hits = search_bm25(session, query, candidate_limit)
+    vector_hits = search_vector(session, query, candidate_limit)
+    return fuse_rrf(bm25_hits, vector_hits, limit)
