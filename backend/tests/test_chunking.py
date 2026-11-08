@@ -1,6 +1,9 @@
 from unittest.mock import Mock
 
 import pytest
+from tokenizers import Tokenizer
+from tokenizers.models import WordLevel
+from tokenizers.pre_tokenizers import WhitespaceSplit
 
 from app.ingestion import chunking
 
@@ -78,12 +81,17 @@ def test_chunk_document_preserves_intro_and_starts_new_branch(monkeypatch):
 
 @pytest.fixture
 def word_count_tokenizer(monkeypatch):
-    tokenizer = Mock()
-    tokenizer.encode.side_effect = lambda text: Mock(ids=text.split())
+    tokenizer = Tokenizer(WordLevel({"[UNK]": 0}, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = WhitespaceSplit()
     monkeypatch.setattr(chunking, "_get_tokenizer", lambda: tokenizer)
 
 
-def test_chunk_document_splits_long_section_by_paragraphs(word_count_tokenizer):
+@pytest.fixture
+def word_count_without_overlap(monkeypatch, word_count_tokenizer):
+    monkeypatch.setattr(chunking, "OVERLAP_TOKENS", 0)
+
+
+def test_chunk_document_splits_long_section_by_paragraphs(word_count_without_overlap):
     paragraphs = [
         " ".join([word] * count)
         for word, count in [("форма", 240), ("заявка", 239), ("ответ", 310), ("архив", 175)]
@@ -98,7 +106,7 @@ def test_chunk_document_splits_long_section_by_paragraphs(word_count_tokenizer):
     assert second.token_count == 486
 
 
-def test_chunk_document_keeps_paragraph_at_max_tokens(word_count_tokenizer):
+def test_chunk_document_keeps_paragraph_at_max_tokens(word_count_without_overlap):
     text = " ".join(["ответ"] * 799) + "\n\nПримечание."
 
     first, second = chunking.chunk_document(text, "Инструкция")
@@ -107,7 +115,7 @@ def test_chunk_document_keeps_paragraph_at_max_tokens(word_count_tokenizer):
     assert second.text == "Примечание."
 
 
-def test_chunk_document_splits_oversized_paragraph_by_lines(word_count_tokenizer):
+def test_chunk_document_splits_oversized_paragraph_by_lines(word_count_without_overlap):
     lines = [" ".join([word] * count) for word, count in [("форма", 240), ("заявка", 230), ("ответ", 350)]]
     paragraphs = ["Сначала вступление.", "\n".join(lines), "Наконец примечание."]
 
@@ -118,7 +126,7 @@ def test_chunk_document_splits_oversized_paragraph_by_lines(word_count_tokenizer
 
 
 @pytest.mark.parametrize("prefix", ["", "Первая строка.\n"])
-def test_chunk_document_splits_oversized_line_by_sentences(word_count_tokenizer, prefix):
+def test_chunk_document_splits_oversized_line_by_sentences(word_count_without_overlap, prefix):
     sentences = [" ".join(["день"] * count).capitalize() + "." for count in (240, 230, 350)]
     first_body = "  ".join(sentences[:2])
     text = prefix + first_body + " " + sentences[2]
@@ -130,7 +138,7 @@ def test_chunk_document_splits_oversized_line_by_sentences(word_count_tokenizer,
     assert [draft.token_count for draft in drafts[-2:]] == [471, 351]
 
 
-def test_chunk_document_keeps_abbreviation_inside_sentence(word_count_tokenizer):
+def test_chunk_document_keeps_abbreviation_inside_sentence(word_count_without_overlap):
     first_sentence = " ".join(["день"] * 480).capitalize() + "."
     second_sentence = "Справки и т. д. приложите к заявке " + " ".join(["заранее"] * 40) + "."
     third_sentence = " ".join(["ответ"] * 310).capitalize() + "."
@@ -143,7 +151,7 @@ def test_chunk_document_keeps_abbreviation_inside_sentence(word_count_tokenizer)
 
 
 @pytest.mark.parametrize("prefix", ["", "Первая строка.\n"])
-def test_chunk_document_splits_oversized_sentence_at_word_boundaries(word_count_tokenizer, prefix):
+def test_chunk_document_splits_oversized_sentence_at_word_boundaries(word_count_without_overlap, prefix):
     first_body = "День  " + " ".join(["день"] * 498)
     second_body = " ".join(["день"] * 400) + "."
     drafts = chunking.chunk_document(prefix + first_body + "\t" + second_body, "Инструкция")
@@ -156,7 +164,9 @@ def test_chunk_document_splits_oversized_sentence_at_word_boundaries(word_count_
 @pytest.fixture
 def character_count_tokenizer(monkeypatch):
     tokenizer = Mock()
-    tokenizer.encode.side_effect = lambda text: Mock(ids=range(len(text)))
+    tokenizer.encode.side_effect = lambda text, **kwargs: Mock(
+        ids=range(len(text)), offsets=[(i, i + 1) for i in range(len(text))]
+    )
     monkeypatch.setattr(chunking, "_get_tokenizer", lambda: tokenizer)
 
 
@@ -164,9 +174,10 @@ def test_chunk_document_splits_oversized_word_without_losing_characters(characte
     word = "абв" * 300
     first, second = chunking.chunk_document(word, "Тест")
 
-    assert first.text + second.text == word
+    assert second.text[:60] == first.text[-60:]
+    assert first.text + second.text[60:] == word
     assert first.token_count == 500
-    assert second.token_count == 412
+    assert second.token_count == 472
 
 
 def test_chunk_document_reports_path_without_room_for_text(character_count_tokenizer):
@@ -174,3 +185,29 @@ def test_chunk_document_reports_path_without_room_for_text(character_count_token
 
     with pytest.raises(ValueError, match="один символ"):
         chunking.chunk_document("День.", title)
+
+
+def test_chunk_document_overlaps_within_section_only(word_count_tokenizer):
+    first_body = " ".join(["форма"] * 480)
+    second_body = " ".join(["ответ"] * 400)
+    text = f"# Подача\n{first_body}\n\n{second_body}\n\n# Архив\nОдин год."
+
+    first, second, archive = chunking.chunk_document(text, "Инструкция")
+
+    assert first.text == first_body
+    assert second.text == " ".join(["форма"] * 60) + "\n\n" + second_body
+    assert second.token_count == 463
+    assert archive.text == "Один год."
+
+
+@pytest.mark.parametrize(("body_tokens", "overlap_tokens"), [(794, 5), (799, 0)])
+def test_chunk_document_reduces_overlap_to_fit_limit(word_count_tokenizer, body_tokens, overlap_tokens):
+    first_body = " ".join(["форма"] * 120)
+    second_body = " ".join(["ответ"] * body_tokens)
+
+    first, second = chunking.chunk_document(f"{first_body}\n\n{second_body}", "Инструкция")
+
+    expected_overlap = " ".join(["форма"] * overlap_tokens) + "\n\n" if overlap_tokens else ""
+    assert first.text == first_body
+    assert second.text == expected_overlap + second_body
+    assert second.token_count == 800

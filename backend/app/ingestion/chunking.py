@@ -148,6 +148,42 @@ def _split_oversized_text(text: str, heading_path: list[str], separator: str | N
     return parts
 
 
+def _prepend_overlap(previous: str, following: str, heading_path: list[str]) -> tuple[str, int] | None:
+    tokenizer = _get_tokenizer()
+    encoding = tokenizer.encode(previous, add_special_tokens=False)
+    starts = sorted({start for start, _ in encoding.offsets[-OVERLAP_TOKENS:] if start < len(previous)})
+    word_starts = [
+        start for start in starts if start == 0 or previous[start - 1].isspace() or previous[start].isspace()
+    ]
+
+    for start in word_starts or starts:
+        tail = previous[start:].lstrip()
+        if not tail or len(tokenizer.encode(tail, add_special_tokens=False).ids) > OVERLAP_TOKENS:
+            continue
+
+        candidate = tail + following
+        token_count = _count_tokens(heading_path, candidate)
+        if token_count <= MAX_TOKENS:
+            return candidate, token_count
+    return None
+
+
+def _apply_overlap(text: str, heading_path: list[str], parts: list[tuple[str, int]]) -> list[tuple[str, int]]:
+    if not OVERLAP_TOKENS or len(parts) < 2:
+        return parts
+
+    result: list[tuple[str, int]] = []
+    previous = ""
+    previous_end = 0
+    for part, token_count in parts:
+        start = text.index(part, previous_end)
+        end = start + len(part)
+        overlapped = _prepend_overlap(previous, text[previous_end:end], heading_path) if previous else None
+        result.append(overlapped if overlapped is not None else (part, token_count))
+        previous, previous_end = part, end
+    return result
+
+
 def chunk_document(text: str, title: str) -> list[ChunkDraft]:
     if not text:
         return []
@@ -182,6 +218,7 @@ def chunk_document(text: str, title: str) -> list[ChunkDraft]:
         token_count = _count_tokens(heading_path, body)
         if token_count > MAX_TOKENS:
             parts = _split_oversized_text(body, heading_path, "\n\n")
+            parts = _apply_overlap(body, heading_path, parts)
         else:
             parts = [(body, token_count)]
 
