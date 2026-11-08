@@ -11,7 +11,8 @@ Algorithm (to be implemented):
 """
 
 import re
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from functools import cache
 
 from razdel import sentenize
@@ -35,6 +36,15 @@ class ChunkDraft:
     @property
     def search_text(self) -> str:
         return _format_search_text(self.heading_path, self.text)
+
+
+@dataclass
+class _Section:
+    heading_path: list[str]
+    heading_line: str = ""
+    level: int = 0
+    parent_id: int | None = None
+    lines: list[str] = field(default_factory=list)
 
 
 def _format_search_text(heading_path: list[str], text: str) -> str:
@@ -184,38 +194,68 @@ def _apply_overlap(text: str, heading_path: list[str], parts: list[tuple[str, in
     return result
 
 
-def chunk_document(text: str, title: str) -> list[ChunkDraft]:
-    if not text:
-        return []
-
-    headings: list[tuple[int, str]] = []
-    body_lines: list[str] = []
-    sections: list[tuple[list[str], list[str]]] = [([title], body_lines)]
-
+def _find_sections(text: str, title: str) -> list[_Section]:
+    headings: list[int] = []
+    sections = [_Section([title])]
     for line in text.split("\n"):
         marker, _, heading = line.partition(" ")
         heading = heading.strip()
         if marker not in ("#", "##", "###", "####", "#####", "######") or not heading:
-            body_lines.append(line)
+            sections[-1].lines.append(line)
             continue
 
         level = len(marker)
-        while headings and headings[-1][0] >= level:
+        while headings and sections[headings[-1]].level >= level:
             headings.pop()
-        headings.append((level, heading))
+        parent_id = headings[-1] if headings else 0
+        heading_path = sections[parent_id].heading_path + [heading]
+        headings.append(len(sections))
+        sections.append(_Section(heading_path, heading_line=line, level=level, parent_id=parent_id))
+    return sections
 
-        heading_path = [title] + [name for _, name in headings]
-        body_lines = []
-        sections.append((heading_path, body_lines))
 
-    structure = "markdown" if headings else "flat"
-    drafts: list[ChunkDraft] = []
-    for heading_path, lines in sections:
-        body = "\n".join(lines).strip()
+def _section_bodies(sections: list[_Section]) -> Iterator[tuple[list[str], str, int]]:
+    index = 0
+    while index < len(sections):
+        section = sections[index]
+        index += 1
+        body = "\n".join(section.lines).strip()
         if not body:
             continue
 
-        token_count = _count_tokens(heading_path, body)
+        token_count = _count_tokens(section.heading_path, body)
+        if token_count < MIN_TOKENS and index < len(sections):
+            following = sections[index]
+            if (
+                section.parent_id == following.parent_id
+                and section.level == following.level
+                and any(line.strip() for line in following.lines)
+            ):
+                parent_path = section.heading_path[:-1]
+                combined_lines = [
+                    section.heading_line,
+                    *section.lines,
+                    following.heading_line,
+                    *following.lines,
+                ]
+                combined = "\n".join(combined_lines).strip()
+                combined_count = _count_tokens(parent_path, combined)
+                if combined_count <= MAX_TOKENS:
+                    yield parent_path, combined, combined_count
+                    index += 1
+                    continue
+
+        yield section.heading_path, body, token_count
+
+
+def chunk_document(text: str, title: str) -> list[ChunkDraft]:
+    if not text:
+        return []
+
+    sections = _find_sections(text, title)
+    structure = "markdown" if len(sections) > 1 else "flat"
+    drafts: list[ChunkDraft] = []
+    for heading_path, body, token_count in _section_bodies(sections):
         if token_count > MAX_TOKENS:
             parts = _split_oversized_text(body, heading_path, "\n\n")
             parts = _apply_overlap(body, heading_path, parts)

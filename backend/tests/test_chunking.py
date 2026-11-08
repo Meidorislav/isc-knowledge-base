@@ -52,6 +52,7 @@ def test_chunk_document_tracks_markdown_siblings(monkeypatch):
     tokenizer = Mock()
     tokenizer.encode.return_value.ids = [10, 20, 30]
     monkeypatch.setattr(chunking, "_get_tokenizer", lambda: tokenizer)
+    monkeypatch.setattr(chunking, "MIN_TOKENS", 0)
     text = (
         "# Рассмотрение\n## Сроки\nОтвет приходит за три дня.\n\n## Уведомление\nРешение отправляют на почту."
     )
@@ -211,3 +212,45 @@ def test_chunk_document_reduces_overlap_to_fit_limit(word_count_tokenizer, body_
     assert first.text == first_body
     assert second.text == expected_overlap + second_body
     assert second.token_count == 800
+
+
+def test_chunk_document_merges_short_siblings_and_keeps_headings(word_count_tokenizer):
+    body = "## Сроки\nОтвет приходит за три дня.\n\n## Уведомление\nРешение отправляют на почту."
+
+    [draft] = chunking.chunk_document("# Рассмотрение\n" + body, "Подача заявки")
+
+    assert draft.heading_path == ["Подача заявки", "Рассмотрение"]
+    assert draft.text == body
+    assert draft.search_text == "Подача заявки > Рассмотрение\n\n" + body
+    assert draft.structure == "markdown"
+
+
+@pytest.mark.parametrize(("word_count", "expected_chunks"), [(94, 1), (95, 2)])
+def test_chunk_document_merges_below_min_tokens(word_count_tokenizer, word_count, expected_chunks):
+    first = " ".join(["день"] * word_count)
+    text = f"# Рассмотрение\n## Сроки\n{first}\n\n## Уведомление\nРешение."
+
+    assert len(chunking.chunk_document(text, "Инструкция")) == expected_chunks
+
+
+@pytest.mark.parametrize(("word_count", "expected_chunks"), [(791, 1), (792, 2)])
+def test_chunk_document_merges_only_if_result_fits(word_count_tokenizer, word_count, expected_chunks):
+    second = " ".join(["ответ"] * word_count)
+    text = f"# Рассмотрение\n## Сроки\nТри дня.\n\n## Уведомление\n{second}"
+
+    drafts = chunking.chunk_document(text, "Инструкция")
+
+    assert len(drafts) == expected_chunks
+    if expected_chunks == 1:
+        assert drafts[0].token_count == 800
+    else:
+        assert [draft.text for draft in drafts] == ["Три дня.", second]
+
+
+def test_chunk_document_does_not_merge_across_heading_levels(word_count_tokenizer):
+    text = "# Рассмотрение\n## Сроки\nТри дня.\n\n### Уведомление\nПисьмом."
+
+    first, second = chunking.chunk_document(text, "Инструкция")
+
+    assert first.heading_path == ["Инструкция", "Рассмотрение", "Сроки"]
+    assert second.heading_path == ["Инструкция", "Рассмотрение", "Сроки", "Уведомление"]
