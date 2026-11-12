@@ -1,0 +1,166 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="ewwdNO0rVLxRlJNgb9jS" name="Page-1">
+    <mxGraphModel dx="656" dy="801" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;" value="&lt;b&gt;C4 · Уровень 3 (Component). Backend-сервис&lt;/b&gt;" vertex="1">
+          <mxGeometry height="40" width="1000" x="420" y="14" as="geometry" />
+        </mxCell>
+        <mxCell id="bA" parent="1" style="rounded=1;dashed=1;fillColor=none;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;html=1;arcSize=2;" value="Backend API  [Container: Python, FastAPI]" vertex="1">
+          <mxGeometry height="580" width="1100" x="420" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Авторизация&lt;/b&gt; [OIDC middleware]: проверка токена, роли и уровни доступа" vertex="1">
+          <mxGeometry height="50" width="1060" x="440" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="docapi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Documents API&lt;/b&gt;&lt;br&gt;[api/documents.py]&lt;br&gt;загрузка, версии, список" vertex="1">
+          <mxGeometry height="90" width="180" x="440" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="gapapi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Gaps API&lt;/b&gt;&lt;br&gt;[эндпоинт]&lt;br&gt;дашборд пробелов" vertex="1">
+          <mxGeometry height="90" width="180" x="660" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="chatapi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Chat API&lt;/b&gt;&lt;br&gt;[эндпоинт]&lt;br&gt;вопрос, ответ, оценка" vertex="1">
+          <mxGeometry height="90" width="180" x="880" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="srchapi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Search API&lt;/b&gt;&lt;br&gt;[эндпоинт]&lt;br&gt;поиск по документам" vertex="1">
+          <mxGeometry height="90" width="180" x="1100" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="rerank" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Reranker&lt;/b&gt;&lt;br&gt;[bge-reranker-v2-m3, sentence-transformers]&lt;br&gt;топ-5 фрагментов" vertex="1">
+          <mxGeometry height="90" width="180" x="1320" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="ingsvc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Ingestion Service&lt;/b&gt;&lt;br&gt;[ingestion/service.py]&lt;br&gt;формат, дедупликация, версия, очередь" vertex="1">
+          <mxGeometry height="110" width="180" x="440" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="gapsvc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Gap Analytics&lt;/b&gt;&lt;br&gt;[сервис]&lt;br&gt;вопросы без ответа и с плохой оценкой" vertex="1">
+          <mxGeometry height="110" width="180" x="660" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="rag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;RAG Orchestrator&lt;/b&gt;&lt;br&gt;[сервис]&lt;br&gt;контекст, промпт, ответ со ссылками" vertex="1">
+          <mxGeometry height="110" width="180" x="880" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="hybrid" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Hybrid Search&lt;/b&gt;&lt;br&gt;[сервис]&lt;br&gt;BM25 (pg_search) + вектор (pgvector), RRF" vertex="1">
+          <mxGeometry height="110" width="180" x="1100" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="guard" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Антигаллюцинационный контур&lt;/b&gt;&lt;br&gt;[сервис]&lt;br&gt;порог → отказ без LLM; проверка ссылок" vertex="1">
+          <mxGeometry height="110" width="180" x="880" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="emb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Ollama Client&lt;/b&gt;&lt;br&gt;[embedding.py + LLM]&lt;br&gt;эмбеддинги, генерация" vertex="1">
+          <mxGeometry height="110" width="180" x="1320" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="bD" parent="1" style="rounded=1;dashed=1;fillColor=none;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;html=1;arcSize=6;" value="PostgreSQL  [Container: pgvector + pg_search]" vertex="1">
+          <mxGeometry height="190" width="1060" x="440" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="t1" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;documents&lt;/b&gt;, &lt;b&gt;document_versions&lt;/b&gt;&lt;br&gt;метаданные, статус, raw-файлы" vertex="1">
+          <mxGeometry height="120" width="240" x="460" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="t2" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;chunks&lt;/b&gt;&lt;br&gt;текст + эмбеддинг (1024), индексы HNSW и BM25" vertex="1">
+          <mxGeometry height="120" width="240" x="720" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="t3" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;ingestion_jobs&lt;/b&gt;&lt;br&gt;очередь задач, попытки, статусы" vertex="1">
+          <mxGeometry height="120" width="240" x="980" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="t4" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;queries, feedback&lt;/b&gt;&lt;br&gt;история запросов, оценки, пробелы" vertex="1">
+          <mxGeometry height="120" width="240" x="1240" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="bW" parent="1" style="rounded=1;dashed=1;fillColor=none;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;html=1;arcSize=3;" value="Обработчик индексации  [Container: Python, отдельный процесс]" vertex="1">
+          <mxGeometry height="300" width="1100" x="420" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="wloop" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Worker Loop&lt;/b&gt;&lt;br&gt;[worker.py]&lt;br&gt;опрос очереди, повторы, статусы" vertex="1">
+          <mxGeometry height="90" width="180" x="440" y="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="queue" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Job Queue&lt;/b&gt;&lt;br&gt;[queue.py]&lt;br&gt;FOR UPDATE SKIP LOCKED" vertex="1">
+          <mxGeometry height="90" width="180" x="660" y="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="pipe" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Pipeline&lt;/b&gt;&lt;br&gt;[pipeline.py]&lt;br&gt;обработка одной версии документа" vertex="1">
+          <mxGeometry height="90" width="180" x="440" y="1170" as="geometry" />
+        </mxCell>
+        <mxCell id="parse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Parser&lt;/b&gt;&lt;br&gt;[parsing.py]&lt;br&gt;DOCX → Markdown" vertex="1">
+          <mxGeometry height="90" width="180" x="660" y="1170" as="geometry" />
+        </mxCell>
+        <mxCell id="chunk" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Chunker&lt;/b&gt;&lt;br&gt;[chunking.py]&lt;br&gt;нарезка по структуре документа" vertex="1">
+          <mxGeometry height="90" width="180" x="880" y="1170" as="geometry" />
+        </mxCell>
+        <mxCell id="emb2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;" value="&lt;b&gt;Embedding Client&lt;/b&gt;&lt;br&gt;[embedding.py]&lt;br&gt;батчи в Ollama /api/embed" vertex="1">
+          <mxGeometry height="90" width="180" x="1100" y="1170" as="geometry" />
+        </mxCell>
+        <mxCell id="sso" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#6B6B6B;fontColor=#FFFFFF;" value="&lt;b&gt;Сервис авторизации Заказчика&lt;/b&gt;&lt;br&gt;[внешняя система, OIDC]" vertex="1">
+          <mxGeometry height="60" width="300" x="1600" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="ollama" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#6B6B6B;fontColor=#FFFFFF;" value="&lt;b&gt;Ollama&lt;/b&gt;&lt;br&gt;[Container]&lt;br&gt;LLM Qwen3 и bge-m3" vertex="1">
+          <mxGeometry height="100" width="300" x="1600" y="505" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="auth" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="sso" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="docapi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="ingsvc" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="gapapi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="gapsvc" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="chatapi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="rag" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="srchapi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="hybrid" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="rag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="hybrid" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="rag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="gapsvc" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="rag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="guard" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="hybrid" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="rerank" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="hybrid" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="emb" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="guard" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="emb" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="emb" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="ollama" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="ingsvc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.0849;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;labelPlacement=auto;" target="bD" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="gapsvc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.2925;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;labelPlacement=auto;" target="bD" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="hybrid" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.7075;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;labelPlacement=auto;" target="bD" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="docapi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.85;exitDx=0;exitDy=0;entryX=0.1887;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;labelPlacement=auto;" target="bD" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="1" source="rag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.85;exitDx=0;exitDy=0;entryX=0.6038;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;labelPlacement=auto;" target="bD" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="wloop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="queue" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="wloop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="pipe" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="pipe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="parse" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="parse" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="chunk" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="chunk" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="emb2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="emb2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;" target="ollama" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="bW" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;labelBackgroundColor=default;defaultLabelBackgroundColor=gap;labelPlacement=auto;" target="bD" value="SQL: очередь, фрагменты">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
