@@ -1,13 +1,10 @@
 """Train a mean pooling text encoder on one sample policy example."""
 
-import re
-
 import numpy as np
 from numpy.typing import NDArray
 
-
-def tokenize(text: str) -> list[str]:
-    return re.findall(r"\w+", text.lower())
+from isc_knowledge_base.encoder import mean_pool as encode
+from isc_knowledge_base.encoder import tokenize
 
 
 def get_word_indices(text: str, word_ids: dict[str, int]) -> list[int]:
@@ -16,10 +13,6 @@ def get_word_indices(text: str, word_ids: dict[str, int]) -> list[int]:
         raise ValueError("Text must contain at least one word")
 
     return [word_ids[word] for word in words]
-
-
-def encode(indices: list[int], embeddings: NDArray[np.float64]) -> NDArray[np.float64]:
-    return embeddings[indices].mean(axis=0)
 
 
 def ranking_loss(correct_score: float, incorrect_score: float, margin: float) -> float:

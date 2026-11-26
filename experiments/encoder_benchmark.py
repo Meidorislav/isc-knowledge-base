@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 import numpy as np
 from numpy.typing import NDArray
 
-from encoder_scoring import encode, tokenize, train_step
+from encoder_scoring import train_step
+from isc_knowledge_base.encoder import WordMeanEncoder, mean_pool, token_indices, tokenize
 
 
 @dataclass(frozen=True)
@@ -46,13 +47,13 @@ def ranks_for_questions(
     section_tokens: list[list[int]],
     questions: list[tuple[list[int], int]],
 ) -> list[int | None]:
-    section_vectors = np.stack([encode(tokens, embeddings) for tokens in section_tokens])
+    section_vectors = np.stack([mean_pool(tokens, embeddings) for tokens in section_tokens])
     ranks = []
     for tokens, correct_index in questions:
         if not tokens:
             ranks.append(None)
             continue
-        scores = section_vectors @ encode(tokens, embeddings)
+        scores = section_vectors @ mean_pool(tokens, embeddings)
         order = np.argsort(-scores, kind="stable")
         ranks.append(order.tolist().index(correct_index) + 1)
     return ranks
@@ -93,6 +94,9 @@ def main() -> None:
         "--seed", type=int, default=os.getenv("ENCODER_SEED", "42"),
         help="random seed for splitting, initialization and shuffling (ENCODER_SEED)",
     )
+    parser.add_argument(
+        "--model-out", type=Path, help="save the trained encoder to an NPZ checkpoint",
+    )
     args = parser.parse_args()
     if args.embedding_dim <= 0:
         parser.error("--embedding-dim must be positive")
@@ -119,14 +123,16 @@ def main() -> None:
 
     vocabulary = {word for section in sections for word in tokenize(section)}
     vocabulary.update(word for question in train for word in tokenize(question.text))
-    word_ids = {word: index for index, word in enumerate(sorted(vocabulary))}
+    words = sorted(vocabulary)
+    word_ids = {word: index for index, word in enumerate(words)}
 
-    def to_indices(text: str) -> list[int]:
-        return [word_ids[word] for word in tokenize(text) if word in word_ids]
-
-    section_tokens = [to_indices(section) for section in sections]
-    train_tokens = [(to_indices(question.text), question.section_index) for question in train]
-    test_tokens = [(to_indices(question.text), question.section_index) for question in test]
+    section_tokens = [token_indices(section, word_ids) for section in sections]
+    train_tokens = [
+        (token_indices(question.text, word_ids), question.section_index) for question in train
+    ]
+    test_tokens = [
+        (token_indices(question.text, word_ids), question.section_index) for question in test
+    ]
 
     section_words = [set(tokens) for tokens in section_tokens]
     triplets = []
@@ -165,6 +171,9 @@ def main() -> None:
     print("\nМесто правильного пункта на отложенных вопросах (до → после):")
     for question, before, after in zip(test, initial_test, final_test, strict=True):
         print(f"{before or '—':>2} → {after or '—':<2}  {question.text}")
+
+    if args.model_out is not None:
+        WordMeanEncoder(words, embeddings).save(args.model_out)
 
 
 if __name__ == "__main__":
