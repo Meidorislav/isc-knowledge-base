@@ -7,7 +7,7 @@ from pathlib import Path
 import psycopg
 
 from isc_knowledge_base.database import connect_postgres
-from isc_knowledge_base.encoder import WordMeanEncoder, load_checkpoint
+from isc_knowledge_base.encoder import WordMeanEncoder, format_fragment_text, load_checkpoint
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +55,7 @@ def index_project_embeddings(
         pending = cursor.fetchall()
         records = []
         for fragment_id, heading_path, text in pending:
-            vector = encoder.encode("\n".join([*heading_path, text]))
+            vector = encoder.encode(format_fragment_text(heading_path, text))
             if vector is not None:
                 records.append((fragment_id, model_id, vector.tolist()))
 

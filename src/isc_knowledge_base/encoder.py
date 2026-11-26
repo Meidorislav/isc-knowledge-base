@@ -17,6 +17,10 @@ def tokenize(text: str) -> list[str]:
     return re.findall(r"\w+", text.lower())
 
 
+def format_fragment_text(heading_path: Sequence[str], body: str) -> str:
+    return "\n".join([*heading_path, body])
+
+
 def token_indices(text: str, word_ids: Mapping[str, int]) -> list[int]:
     return [word_ids[word] for word in tokenize(text) if word in word_ids]
 
