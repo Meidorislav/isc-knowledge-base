@@ -3,12 +3,11 @@
 import argparse
 from dataclasses import dataclass
 from hashlib import sha256
-import os
 from pathlib import Path
 
-from dotenv import load_dotenv
 import psycopg
 
+from isc_knowledge_base.database import connect_postgres
 from isc_knowledge_base.markdown_import import MarkdownSource
 
 
@@ -99,18 +98,9 @@ def main() -> None:
     parser.add_argument("--project-id", required=True, help="stable identifier of the source project")
     parser.add_argument("--commit-sha", help="full commit SHA of the source snapshot, if known")
     args = parser.parse_args()
-    load_dotenv(Path.cwd() / ".env")
-
     try:
         source = MarkdownSource(args.root, project_id=args.project_id, commit_sha=args.commit_sha)
-        with psycopg.connect(
-            host=os.getenv("POSTGRES_HOST") or "127.0.0.1",
-            port=os.getenv("POSTGRES_PORT") or "5432",
-            dbname=os.getenv("POSTGRES_DB") or "isc_knowledge_base",
-            user=os.getenv("POSTGRES_USER") or "isc_knowledge_base",
-            password=os.getenv("POSTGRES_PASSWORD") or "isc_knowledge_base_dev",
-            autocommit=True,
-        ) as connection:
+        with connect_postgres() as connection:
             result = sync_project(connection, source)
     except (OSError, ValueError) as error:
         parser.error(str(error))
