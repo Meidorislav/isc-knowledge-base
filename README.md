@@ -30,6 +30,13 @@ uv run --locked python -m isc_knowledge_base.postgres_import \
 
 The benchmark accepts a custom directory containing `corpus/` and `questions.json` as its first argument.
 
+Search the demo project with the same checkpoint. The JSON results include the fragment text, score, and source lines.
+
+```sh
+uv run --locked python -m isc_knowledge_base.semantic_search \
+    /tmp/isc-demo-encoder.npz --project-id demo --query "hotel invoice" --limit 5
+```
+
 ## Run tests
 
 ```sh
