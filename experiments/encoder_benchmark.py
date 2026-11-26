@@ -80,8 +80,11 @@ def main() -> None:
         description=__doc__,
         epilog="Command-line options override environment variables, then .env, then built-in defaults.",
     )
-    default_bench = project_dir.parent / "bench"
-    parser.add_argument("bench_dir", type=Path, nargs="?", default=default_bench)
+    default_bench = project_dir / "experiments" / "fixtures" / "benchmark"
+    parser.add_argument(
+        "bench_dir", type=Path, nargs="?", default=default_bench,
+        help="corpus and questions directory (defaults to the bundled synthetic fixture)",
+    )
     parser.add_argument(
         "--embedding-dim", type=int, default=os.getenv("ENCODER_EMBEDDING_DIM", "32"),
         help="number of coordinates per token vector (ENCODER_EMBEDDING_DIM)",
