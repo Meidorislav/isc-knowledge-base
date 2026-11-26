@@ -19,7 +19,9 @@ class ImportResult:
     deleted: int
 
 
-def sync_project(connection: psycopg.Connection, source: MarkdownSource) -> ImportResult:
+def sync_project(
+    connection: psycopg.Connection, source: MarkdownSource, *, allow_empty: bool = False,
+) -> ImportResult:
     added = updated = unchanged = 0
     with connection.transaction(), connection.cursor() as cursor:
         # The project upsert locks this project row until the import commits.
@@ -38,7 +40,9 @@ def sync_project(connection: psycopg.Connection, source: MarkdownSource) -> Impo
         )
         previous_hashes = dict(cursor.fetchall())
 
+        found_document = False
         for document in source.documents():
+            found_document = True
             content_hash = sha256(document.content).hexdigest()
             previous_hash = previous_hashes.pop(document.path, None)
             if previous_hash == content_hash:
@@ -83,6 +87,9 @@ def sync_project(connection: psycopg.Connection, source: MarkdownSource) -> Impo
                 ),
             )
 
+        if not found_document and not allow_empty:
+            raise ValueError("No Markdown files found. Pass --allow-empty to import an empty snapshot.")
+
         if previous_hashes:
             cursor.execute(
                 "DELETE FROM source_documents WHERE project_id = %s AND path = ANY(%s)",
@@ -97,11 +104,12 @@ def main() -> None:
     parser.add_argument("root", type=Path, help="root of the local Markdown tree")
     parser.add_argument("--project-id", required=True, help="stable identifier of the source project")
     parser.add_argument("--commit-sha", help="full commit SHA of the source snapshot, if known")
+    parser.add_argument("--allow-empty", action="store_true", help="allow clearing a project with an empty Markdown tree")
     args = parser.parse_args()
     try:
         source = MarkdownSource(args.root, project_id=args.project_id, commit_sha=args.commit_sha)
         with connect_postgres() as connection:
-            result = sync_project(connection, source)
+            result = sync_project(connection, source, allow_empty=args.allow_empty)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     except psycopg.Error as error:
