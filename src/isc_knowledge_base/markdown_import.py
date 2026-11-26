@@ -1,12 +1,14 @@
 """Import local Markdown files as fragments with source metadata."""
 
+import argparse
 from collections import Counter
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from hashlib import sha256
 import json
 from pathlib import Path
 import re
+from tempfile import TemporaryDirectory
 
 from markdown_it import MarkdownIt
 
@@ -107,3 +109,39 @@ def import_markdown(
                 ),
                 text=text,
             )
+
+
+def _write_jsonl(output: Path, fragments: Iterator[MarkdownFragment]) -> int:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    count = 0
+    with TemporaryDirectory(dir=output.parent) as temporary_dir:
+        temporary_path = Path(temporary_dir) / "fragments.jsonl"
+        with temporary_path.open("w", encoding="utf-8", newline="\n") as file:
+            for fragment in fragments:
+                file.write(json.dumps(asdict(fragment), ensure_ascii=False) + "\n")
+                count += 1
+        temporary_path.chmod(0o600)
+        temporary_path.replace(output)
+    return count
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", type=Path, help="root of the local Markdown tree")
+    parser.add_argument("--project-id", required=True, help="stable identifier of the source project")
+    parser.add_argument("--commit-sha", help="full commit SHA of the source snapshot, if known")
+    parser.add_argument("--output", required=True, type=Path, help="path for the imported JSONL file")
+    args = parser.parse_args()
+    if args.output.suffix.lower() == ".md":
+        parser.error("--output must be a JSONL file path, not a Markdown file")
+
+    try:
+        fragments = import_markdown(args.root, project_id=args.project_id, commit_sha=args.commit_sha)
+        count = _write_jsonl(args.output, fragments)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    print(f"Imported {count} fragments.")
+
+
+if __name__ == "__main__":
+    main()
