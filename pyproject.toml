@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "markdown-it-py>=4.3.0",
     "numpy",
+    "psycopg[binary]>=3.3.9",
     "python-dotenv>=1.2.4",
 ]
 
