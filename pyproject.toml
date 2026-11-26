@@ -2,4 +2,7 @@
 name = "isc-knowledge-base"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["numpy"]
+dependencies = [
+    "numpy",
+    "python-dotenv>=1.2.4",
+]

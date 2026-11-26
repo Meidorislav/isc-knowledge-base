@@ -3,9 +3,12 @@
 import argparse
 from dataclasses import dataclass
 import json
+from math import isfinite
+import os
 from pathlib import Path
 import re
 
+from dotenv import load_dotenv
 import numpy as np
 from numpy.typing import NDArray
 
@@ -62,13 +65,49 @@ def print_metrics(label: str, ranks: list[int | None]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    default_bench = Path(__file__).resolve().parents[2] / "bench"
+    project_dir = Path(__file__).resolve().parents[1]
+    load_dotenv(project_dir / ".env")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="Command-line options override environment variables, then .env, then built-in defaults.",
+    )
+    default_bench = project_dir.parent / "bench"
     parser.add_argument("bench_dir", type=Path, nargs="?", default=default_bench)
+    parser.add_argument(
+        "--embedding-dim", type=int, default=os.getenv("ENCODER_EMBEDDING_DIM", "32"),
+        help="number of coordinates per token vector (ENCODER_EMBEDDING_DIM)",
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=os.getenv("ENCODER_EPOCHS", "20"),
+        help="number of passes over the training examples (ENCODER_EPOCHS)",
+    )
+    parser.add_argument(
+        "--learning-rate", type=float, default=os.getenv("ENCODER_LEARNING_RATE", "0.1"),
+        help="step size for updating token vectors (ENCODER_LEARNING_RATE)",
+    )
+    parser.add_argument(
+        "--margin", type=float, default=os.getenv("ENCODER_MARGIN", "0.1"),
+        help="required score gap between the correct and incorrect sections (ENCODER_MARGIN)",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=os.getenv("ENCODER_SEED", "42"),
+        help="random seed for splitting, initialization and shuffling (ENCODER_SEED)",
+    )
     args = parser.parse_args()
+    if args.embedding_dim <= 0:
+        parser.error("--embedding-dim must be positive")
+    if args.epochs < 0:
+        parser.error("--epochs must be non-negative")
+    if not isfinite(args.learning_rate) or args.learning_rate < 0:
+        parser.error("--learning-rate must be finite and non-negative")
+    if not isfinite(args.margin) or args.margin < 0:
+        parser.error("--margin must be finite and non-negative")
+    if args.seed < 0:
+        parser.error("--seed must be non-negative")
+
     sections, questions, without_answer = load_bench(args.bench_dir)
 
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(args.seed)
     gold_indices = sorted({question.section_index for question in questions})
     if len(gold_indices) < 2:
         parser.error("The benchmark must contain questions about at least two sections")
@@ -99,14 +138,21 @@ def main() -> None:
         )
         triplets.append((tokens, section_tokens[correct_index], section_tokens[negative_index]))
 
-    embeddings = rng.normal(0.0, 0.1, size=(len(word_ids), 32))
+    embeddings = rng.normal(0.0, 0.1, size=(len(word_ids), args.embedding_dim))
     initial_train = ranks_for_questions(embeddings, section_tokens, train_tokens)
     initial_test = ranks_for_questions(embeddings, section_tokens, test_tokens)
 
-    for _ in range(20):
+    for _ in range(args.epochs):
         for example_index in rng.permutation(len(triplets)):
             query, correct, incorrect = triplets[example_index]
-            train_step(embeddings, query, correct, incorrect, margin=0.1, learning_rate=0.1)
+            train_step(
+                embeddings,
+                query,
+                correct,
+                incorrect,
+                margin=args.margin,
+                learning_rate=args.learning_rate,
+            )
 
     final_train = ranks_for_questions(embeddings, section_tokens, train_tokens)
     final_test = ranks_for_questions(embeddings, section_tokens, test_tokens)
