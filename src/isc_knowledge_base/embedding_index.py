@@ -34,6 +34,14 @@ def index_project_embeddings(
         )
         cursor.execute(
             """
+            INSERT INTO source_project_embedding_models (project_id, model_id)
+            VALUES (%s, %s)
+            ON CONFLICT (project_id, model_id) DO NOTHING
+            """,
+            (project_id, model_id),
+        )
+        cursor.execute(
+            """
             SELECT fragment.id, fragment.heading_path, fragment.text
             FROM document_fragments AS fragment
             WHERE fragment.project_id = %s
