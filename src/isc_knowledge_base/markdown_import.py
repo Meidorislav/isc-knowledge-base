@@ -30,6 +30,12 @@ class MarkdownFragment:
     text: str
 
 
+@dataclass(frozen=True, slots=True)
+class MarkdownDocument:
+    path: str
+    content: bytes
+
+
 def _raise_walk_error(error: OSError) -> None:
     raise error
 
@@ -72,43 +78,60 @@ def _sections(
         yield heading_path, start + 1, end, "\n".join(lines[body_start:end])
 
 
-def import_markdown(
-    root: Path, *, project_id: str, commit_sha: str | None = None,
-) -> Iterator[MarkdownFragment]:
-    """Read a Markdown tree. Source line numbers are one-based and inclusive."""
-    if not root.is_dir():
-        raise NotADirectoryError(f"Expected a Markdown source directory: {root}")
-    project_id = project_id.strip()
-    if not project_id:
-        raise ValueError("Project ID must not be empty")
-    if commit_sha is not None:
-        if not re.fullmatch(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", commit_sha):
-            raise ValueError("Commit SHA must be a full Git commit hash")
-        commit_sha = commit_sha.lower()
+class MarkdownSource:
+    """Read documents and split their contents into source-linked fragments."""
 
-    parser = MarkdownIt("commonmark")
-    for path in sorted(_markdown_files(root)):
-        relative_path = path.relative_to(root).as_posix()
-        markdown = path.read_text(encoding="utf-8-sig")
+    def __init__(self, root: Path, *, project_id: str, commit_sha: str | None = None) -> None:
+        if not root.is_dir():
+            raise NotADirectoryError(f"Expected a Markdown source directory: {root}")
+        project_id = project_id.strip()
+        if not project_id:
+            raise ValueError("Project ID must not be empty")
+        if commit_sha is not None:
+            if not re.fullmatch(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", commit_sha):
+                raise ValueError("Commit SHA must be a full Git commit hash")
+            commit_sha = commit_sha.lower()
+
+        self.root = root
+        self.project_id = project_id
+        self.commit_sha = commit_sha
+        self._parser = MarkdownIt("commonmark")
+
+    def documents(self) -> Iterator[MarkdownDocument]:
+        for path in sorted(_markdown_files(self.root)):
+            yield MarkdownDocument(path.relative_to(self.root).as_posix(), path.read_bytes())
+
+    def fragments(self, document: MarkdownDocument) -> Iterator[MarkdownFragment]:
+        """Split a document using one-based, inclusive source line numbers."""
+        markdown = document.content.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
         occurrences: Counter[tuple[str, ...]] = Counter()
-        for heading_path, start_line, end_line, text in _sections(markdown, parser):
+        for heading_path, start_line, end_line, text in _sections(markdown, self._parser):
             occurrences[heading_path] += 1
             if not text:
                 continue
-            key = (project_id, relative_path, heading_path, occurrences[heading_path])
+            key = (self.project_id, document.path, heading_path, occurrences[heading_path])
             identity = json.dumps(key, ensure_ascii=False, separators=(",", ":"))
             yield MarkdownFragment(
                 id=sha256(identity.encode("utf-8")).hexdigest(),
                 source=FragmentSource(
-                    project_id=project_id,
-                    path=relative_path,
-                    commit_sha=commit_sha,
+                    project_id=self.project_id,
+                    path=document.path,
+                    commit_sha=self.commit_sha,
                     heading_path=heading_path,
                     start_line=start_line,
                     end_line=end_line,
                 ),
                 text=text,
             )
+
+
+def import_markdown(
+    root: Path, *, project_id: str, commit_sha: str | None = None,
+) -> Iterator[MarkdownFragment]:
+    """Read a Markdown tree. Source line numbers are one-based and inclusive."""
+    source = MarkdownSource(root, project_id=project_id, commit_sha=commit_sha)
+    for document in source.documents():
+        yield from source.fragments(document)
 
 
 def _write_jsonl(output: Path, fragments: Iterator[MarkdownFragment]) -> int:

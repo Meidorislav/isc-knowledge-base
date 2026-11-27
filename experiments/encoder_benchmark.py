@@ -13,7 +13,14 @@ import numpy as np
 from numpy.typing import NDArray
 
 from encoder_scoring import train_step
-from isc_knowledge_base.encoder import WordMeanEncoder, mean_pool, token_indices, tokenize
+from isc_knowledge_base.encoder import (
+    WordMeanEncoder,
+    format_fragment_text,
+    mean_pool,
+    token_indices,
+    tokenize,
+)
+from isc_knowledge_base.markdown_import import import_markdown
 
 
 @dataclass(frozen=True)
@@ -25,17 +32,18 @@ class Question:
 def load_bench(bench_dir: Path) -> tuple[list[str], list[Question], int]:
     sections = []
     section_indices = {}
-    for path in sorted((bench_dir / "corpus").glob("*.md")):
-        text = path.read_text(encoding="utf-8")
-        headings = list(re.finditer(r"^## (\d+)\. ([^\n]+)\n", text, flags=re.MULTILINE))
-        boundaries = [heading.start() for heading in headings] + [len(text)]
-        for heading, end in zip(headings, boundaries[1:], strict=True):
-            section_indices[path.stem, heading[1]] = len(sections)
-            sections.append(f"{heading[2]}\n{text[heading.end():end].strip()}")
-
     records = json.loads((bench_dir / "questions.json").read_text(encoding="utf-8"))
+    for fragment in import_markdown(bench_dir / "corpus", project_id="benchmark"):
+        headings = fragment.source.heading_path
+        if headings and (number := re.match(r"^(\d+)\.\s+", headings[-1])):
+            key = (Path(fragment.source.path).with_suffix("").as_posix(), number[1])
+            if key in section_indices:
+                raise ValueError(f"Duplicate benchmark section {key[1]!r} in {key[0]!r}")
+            section_indices[key] = len(sections)
+        sections.append(format_fragment_text(headings, fragment.text))
+
     questions = [
-        Question(record["q"], section_indices[record["doc"], record["sec"]])
+        Question(record["q"], section_indices[record["doc"], str(record["sec"])])
         for record in records
         if record["doc"] is not None
     ]
@@ -72,8 +80,11 @@ def main() -> None:
         description=__doc__,
         epilog="Command-line options override environment variables, then .env, then built-in defaults.",
     )
-    default_bench = project_dir.parent / "bench"
-    parser.add_argument("bench_dir", type=Path, nargs="?", default=default_bench)
+    default_bench = project_dir / "experiments" / "fixtures" / "benchmark"
+    parser.add_argument(
+        "bench_dir", type=Path, nargs="?", default=default_bench,
+        help="corpus and questions directory (defaults to the bundled synthetic fixture)",
+    )
     parser.add_argument(
         "--embedding-dim", type=int, default=os.getenv("ENCODER_EMBEDDING_DIM", "32"),
         help="number of coordinates per token vector (ENCODER_EMBEDDING_DIM)",

@@ -1,0 +1,14 @@
+[
+  {"q": "Which class of rail ticket can I book?", "doc": "travel", "sec": 1},
+  {"q": "When should I submit my hotel invoice?", "doc": "travel", "sec": 2},
+  {"q": "What should a hotel invoice include?", "doc": "travel", "sec": 2},
+  {"q": "How do I cancel a planned trip?", "doc": "travel", "sec": 3},
+  {"q": "Where does a visitor collect a badge?", "doc": "access", "sec": 1},
+  {"q": "Who disables a lost badge?", "doc": "access", "sec": 2},
+  {"q": "Where do I reserve a meeting room?", "doc": "access", "sec": 3},
+  {"q": "Who approves the release checklist?", "doc": "releases", "sec": 1},
+  {"q": "What should I restore if deployment fails?", "doc": "releases", "sec": 2},
+  {"q": "When should the incident review happen?", "doc": "releases", "sec": 3},
+  {"q": "What must be recorded during an incident review?", "doc": "releases", "sec": 3},
+  {"q": "How do I request a bicycle parking permit?", "doc": null, "sec": null}
+]

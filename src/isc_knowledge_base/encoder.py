@@ -1,9 +1,13 @@
 """Inference and checkpoint storage for the mean-pooled word encoder."""
 
 from collections.abc import Mapping, Sequence
+from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 import re
 from tempfile import TemporaryDirectory
+from typing import BinaryIO
+from zipfile import BadZipFile
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,6 +15,10 @@ from numpy.typing import NDArray
 
 def tokenize(text: str) -> list[str]:
     return re.findall(r"\w+", text.lower())
+
+
+def format_fragment_text(heading_path: Sequence[str], body: str) -> str:
+    return "\n".join([*heading_path, body])
 
 
 def token_indices(text: str, word_ids: Mapping[str, int]) -> list[int]:
@@ -64,7 +72,7 @@ class WordMeanEncoder:
             checkpoint.replace(path)
 
     @classmethod
-    def load(cls, path: Path) -> "WordMeanEncoder":
+    def load(cls, path: Path | BinaryIO) -> "WordMeanEncoder":
         checkpoint = np.load(path, allow_pickle=False)
         if not isinstance(checkpoint, np.lib.npyio.NpzFile):
             raise ValueError("Expected an encoder checkpoint in NPZ format")
@@ -75,3 +83,13 @@ class WordMeanEncoder:
             if vocabulary.ndim != 1 or vocabulary.dtype.kind != "U":
                 raise ValueError("Expected a one-dimensional vocabulary of strings")
             return cls(vocabulary.tolist(), checkpoint["embeddings"])
+
+
+def load_checkpoint(path: Path) -> tuple[str, WordMeanEncoder]:
+    """Load an encoder and identify it by the hash of the same checkpoint bytes."""
+    content = path.read_bytes()
+    try:
+        encoder = WordMeanEncoder.load(BytesIO(content))
+    except (BadZipFile, EOFError, KeyError) as error:
+        raise ValueError("Invalid encoder checkpoint") from error
+    return sha256(content).hexdigest(), encoder
