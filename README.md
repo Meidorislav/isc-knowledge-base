@@ -37,6 +37,25 @@ uv run --locked python -m isc_knowledge_base.semantic_search \
     /tmp/isc-demo-encoder.npz --project-id demo --query "hotel invoice" --limit 5
 ```
 
+## Search over HTTP
+
+Start the API with the indexed checkpoint.
+
+```sh
+env ENCODER_CHECKPOINT_PATH=/tmp/isc-demo-encoder.npz \
+    uv run --locked uvicorn isc_knowledge_base.api:app --host 127.0.0.1
+```
+
+From another terminal, send a JSON request to `POST /search`.
+
+```sh
+curl -sS http://127.0.0.1:8000/search \
+    -H 'Content-Type: application/json' \
+    -d '{"project_id":"demo","query":"hotel invoice","limit":5}'
+```
+
+The API returns the same array of fragments as the CLI and sets `Cache-Control: no-store`. The limit defaults to 5 and accepts integers from 1 to 100.
+
 ## Run tests
 
 ```sh
